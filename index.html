@@ -66,7 +66,7 @@ tbody tr:last-child td{border-bottom:none}
 <body>
 <div class="header">
   <h1>Ranking Electro Diario &mdash; MLA</h1>
-  <p>Top 50 items por NSI &middot; Batch: BT_ORDERS_MLA | NRT: BT_ORDERS_MLA_NRT &middot; Generado: 11/05/2026 16:24</p>
+  <p>Top 50 items por NSI &middot; Batch: BT_ORDERS_MLA | NRT: BT_ORDERS_MLA_NRT &middot; Generado: 11/05/2026 16:56</p>
 </div>
 <div class="cat-tabs">
 <button class="tab-btn grp-btn" data-cat="grp-home_elec" data-color="#1D4ED8" onclick="switchTab(this)">HOME ELECTRONICS</button>
@@ -8926,8 +8926,7 @@ function dlCSV(tblId, fname){
     });
     rows.push(cells.join(','));
   });
-  var blob=new Blob(['﻿'+rows.join('
-')],{type:'text/csv;charset=utf-8'});
+  var blob=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=fname;
