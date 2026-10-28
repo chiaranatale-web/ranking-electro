@@ -92,7 +92,7 @@
     document.querySelector('.header > p').textContent = 'Top 50 ítems por NSI · MercadoLibre Argentina';
     const previewNote = document.querySelector('.cat-tabs + .preview-note');
     if (previewNote) previewNote.textContent = loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Hot Sale: archivo histórico.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
-    status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'}) : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
+    status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hourCycle:'h23'}) : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
   }
 
   async function load(kind) {

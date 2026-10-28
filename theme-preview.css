@@ -27,6 +27,7 @@ body {
 }
 .header h1 { color: #fff; font-size: clamp(21px, 2.3vw, 29px); letter-spacing: -.35px; }
 .header p { color: #d5e2ff; font-size: 12px; margin-top: 7px; }
+.header p.preview-note { background: transparent; border: 0; color: #d5e2ff; padding: 0; }
 
 .cat-tabs {
   align-items: center;
