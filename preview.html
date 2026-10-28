@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista previa · Ranking Electro MLA</title>
+<body>
+<p id="message">Cargando vista previa del ranking…</p>
+<script>
+(async function () {
+  try {
+    const response = await fetch('snapshot.html', {cache: 'no-store'});
+    if (!response.ok) throw new Error('No se pudo cargar el ranking');
+    let html = await response.text();
+    if (!html.includes('class="cat-tabs"') || !html.includes('</body>')) throw new Error('El formato del ranking cambió');
+    html = html.replace('</head>', '<link rel="stylesheet" href="theme-preview.css"></head>');
+    html = html.replace('</body>', '<script src="theme-preview.js"><\/script><script src="refresh-preview.js"><\/script></body>');
+    document.open(); document.write(html); document.close();
+  } catch (error) {
+    document.getElementById('message').textContent = error.message;
+  }
+})();
+</script>
+</body>
+</html>
