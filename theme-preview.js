@@ -2,7 +2,7 @@
   var tabs = document.querySelector('.cat-tabs');
   if (!tabs) return;
 
-  var categoryButtons = Array.from(tabs.querySelectorAll('.tab-btn:not(.grp-btn)'));
+  var categoryButtons = Array.from(tabs.querySelectorAll('.tab-btn:not(.grp-btn):not(.hs-main-btn)'));
   if (!categoryButtons.length) return;
 
   var menu = document.createElement('details');

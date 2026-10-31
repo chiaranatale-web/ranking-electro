@@ -41,12 +41,14 @@
     for (const date of Object.values(payload.dates || {})) if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw Error('Período inválido');
     if (!payload.dates?.hoy || !payload.dates?.ayer || !payload.dates?.week_start) throw Error('Faltan fechas');
     if (payload.dates.hoy > currentDay() || (kind === 'hoy' && payload.dates.hoy !== currentDay())) throw Error('La fecha de Hoy no corresponde al día actual');
-    const periods = kind === 'hoy' ? ['hoy'] : ['ayer', '7d'];
+    const periods = kind === 'hoy' ? ['hoy'] : ['ayer', '7d', 'cyber_acum', ...Array.from({length:10}, (_,i) => 'cyber_d' + (i+1))];
+    if (kind === 'daily' && payload.event && (payload.event.start_date !== '2026-11-02' || payload.event.end_date !== '2026-11-11' || (payload.event.through_date != null && (payload.event.through_date < '2026-11-02' || payload.event.through_date > '2026-11-11' || payload.event.through_date > payload.dates.ayer)))) throw Error('Fechas de Cyber Monday inválidas');
     const seen = new Set();
     for (const row of payload.rows) {
       const key = [row.period, row.panel, row.item_id].join('/');
       if (!periods.includes(row.period) || seen.has(key) || !/^\d+$/.test(String(row.item_id)) || !document.getElementById('panel-' + row.panel)) throw Error('Ranking inválido');
       seen.add(key);
+      if (row.period.startsWith('cyber_') && (!payload.event?.through_date || (row.period !== 'cyber_acum' && '2026-11-' + String(Number(row.period.slice(7)) + 1).padStart(2, '0') > payload.event.through_date))) throw Error('Día de Cyber Monday no cerrado');
       if (typeof row.nsi !== 'number' || row.nsi < 1 || typeof row.nmv !== 'number') throw Error('Faltan métricas de ventas');
       for (const field of ['nsi','nmv','precio']) if (row[field] != null && (typeof row[field] !== 'number' || !Number.isFinite(row[field]) || row[field] < 0)) throw Error('Métrica inválida');
       if (row.stock != null && (!Number.isFinite(Number(row.stock)) || Number(row.stock) < 0)) throw Error('Stock inválido');
@@ -54,7 +56,7 @@
         if (row[field] != null && (!Number.isInteger(row[field]) || row[field] < 1 || row[field] > 50)) throw Error('Ranking anterior inválido');
       }
     }
-    if (periods.some(period => !payload.rows.some(row => row.period === period && row.panel === 'grp-total'))) throw Error('Falta el ranking de Total MLA');
+    if ((kind === 'hoy' ? ['hoy'] : ['ayer', '7d']).some(period => !payload.rows.some(row => row.period === period && row.panel === 'grp-total'))) throw Error('Falta el ranking de Total MLA');
   }
 
   function attribute(label, row) {
@@ -127,9 +129,10 @@
       });
     });
     loaded[payload.kind] = payload;
+    if (payload.kind === 'daily') window.CyberMonday?.render(payload);
     document.querySelector('.header > p').textContent = 'Top 50 ítems por NSI · MercadoLibre Argentina';
     const previewNote = document.querySelector('.cat-tabs + .preview-note');
-    if (previewNote) previewNote.textContent = loaded.daily?.dates.hoy !== currentDay() ? 'Actualización diaria pendiente: Ayer y Últ. 7 días conservan las fechas indicadas en sus solapas.' : loaded.hoy && stale('hoy', loaded.hoy) ? 'Actualización de Hoy demorada: se conservan los últimos datos válidos y su hora real.' : loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Hot Sale: archivo histórico.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
+    if (previewNote) previewNote.textContent = loaded.daily?.dates.hoy !== currentDay() ? 'Actualización diaria pendiente: Ayer y Últ. 7 días conservan las fechas indicadas en sus solapas.' : loaded.hoy && stale('hoy', loaded.hoy) ? 'Actualización de Hoy demorada: se conservan los últimos datos válidos y su hora real.' : loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Cyber Monday: 02/11–11/11/2026.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
     status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hourCycle:'h23'}) + (stale(kind, loaded[kind]) ? ' (atrasado)' : '') : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
   }
 
