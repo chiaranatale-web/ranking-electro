@@ -20,6 +20,8 @@
   const dateLabel = date => date.slice(8,10) + '/' + date.slice(5,7);
   const stocks = new Map();
   const comparison = window.RankingComparison;
+  const stale = (kind, payload) => payload.dates.hoy !== currentDay() ||
+    (kind === 'hoy' && Date.now() - Date.parse(payload.generated_at) > 45 * 60 * 1000);
 
   function updateMovement(tr, index, metric) {
     const td = tr.querySelector('.ranking-change');
@@ -127,8 +129,8 @@
     loaded[payload.kind] = payload;
     document.querySelector('.header > p').textContent = 'Top 50 ítems por NSI · MercadoLibre Argentina';
     const previewNote = document.querySelector('.cat-tabs + .preview-note');
-    if (previewNote) previewNote.textContent = loaded.daily?.dates.hoy !== currentDay() ? 'Actualización diaria pendiente: Ayer y Últ. 7 días conservan las fechas indicadas en sus solapas.' : loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Hot Sale: archivo histórico.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
-    status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hourCycle:'h23'}) + (loaded[kind].dates.hoy !== currentDay() ? ' (atrasado)' : '') : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
+    if (previewNote) previewNote.textContent = loaded.daily?.dates.hoy !== currentDay() ? 'Actualización diaria pendiente: Ayer y Últ. 7 días conservan las fechas indicadas en sus solapas.' : loaded.hoy && stale('hoy', loaded.hoy) ? 'Actualización de Hoy demorada: se conservan los últimos datos válidos y su hora real.' : loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Hot Sale: archivo histórico.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
+    status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hourCycle:'h23'}) + (stale(kind, loaded[kind]) ? ' (atrasado)' : '') : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
   }
 
   async function load(kind) {
