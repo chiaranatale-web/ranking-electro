@@ -40,11 +40,11 @@
   }
   panel.querySelectorAll('.hs-cat-tabs').forEach(tabs => {
     const menu = document.createElement('details'); menu.className = 'category-more';
-    const summary = document.createElement('summary'); summary.textContent = 'Categorías ▾';
+    const summary = document.createElement('summary'); summary.textContent = 'Categorías';
     const list = document.createElement('div'); list.className = 'category-menu';
     tabs.querySelectorAll('.hs-cat-btn').forEach(button => {
       if (button.dataset.hscat.startsWith('grp-')) return;
-      list.append(button); button.addEventListener('click', () => { menu.open = false; summary.textContent = button.textContent + ' ▾'; });
+      list.append(button); button.addEventListener('click', () => { menu.open = false; summary.textContent = button.textContent; });
     });
     menu.append(summary, list); tabs.querySelector('.tab-separator')?.remove(); tabs.append(menu);
   });
@@ -99,5 +99,7 @@
   window.CyberMonday = { render };
   const originalDay = window.switchHSDay;
   window.switchHSDay = function (button) { originalDay(button); render(); };
+  const originalSort = window.sortHS;
+  window.sortHS = function (button) { originalSort(button); render(); };
   render();
 })();
