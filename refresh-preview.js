@@ -1,5 +1,14 @@
-(function () {
+(function initializeRanking() {
   'use strict';
+  // Older cached loaders may not include the comparison helper yet.
+  if (!window.RankingComparison) {
+    const helper = document.createElement('script');
+    helper.src = 'ranking-comparison.js?v=20261030-1';
+    helper.onload = initializeRanking;
+    helper.onerror = () => console.info('No se pudo cargar la comparación de rankings');
+    document.head.appendChild(helper);
+    return;
+  }
   const clock = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires' });
   const currentDay = () => clock.format(new Date());
   const status = document.createElement('p');
