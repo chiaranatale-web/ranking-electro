@@ -12,8 +12,8 @@
     if (!response.ok) throw new Error('No se pudo cargar el ranking');
     let html = await response.text();
     if (!html.includes('class="cat-tabs"') || !html.includes('</body>')) throw new Error('El formato del ranking cambió');
-    html = html.replace('</head>', '<link rel="stylesheet" href="theme-preview.css?v=20261028-2"></head>');
-    html = html.replace('</body>', '<script src="theme-preview.js?v=20261028-2"><\/script><script src="refresh-preview.js?v=20261028-2"><\/script></body>');
+    html = html.replace('</head>', '<link rel="stylesheet" href="theme-preview.css?v=20261030-1"></head>');
+    html = html.replace('</body>', '<script src="theme-preview.js?v=20261030-1"><\/script><script src="ranking-comparison.js?v=20261030-1"><\/script><script src="refresh-preview.js?v=20261030-1"><\/script></body>');
     document.open(); document.write(html); document.close();
   } catch (error) {
     document.getElementById('message').textContent = error.message;

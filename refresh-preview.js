@@ -10,6 +10,19 @@
   const number = value => value == null ? '—' : Math.round(Number(value)).toLocaleString('es-AR');
   const dateLabel = date => date.slice(8,10) + '/' + date.slice(5,7);
   const stocks = new Map();
+  const comparison = window.RankingComparison;
+
+  function updateMovement(tr, index, metric) {
+    const td = tr.querySelector('.ranking-change');
+    if (!td) return;
+    const previous = tr.dataset[metric === 'nmv' ? 'previousRankNmv' : 'previousRankNsi'];
+    const change = comparison.movement(index + 1, previous, tr.dataset.comparisonAvailable === 'true');
+    const badge = document.createElement('span');
+    badge.className = change.className;
+    badge.textContent = change.text;
+    td.replaceChildren(badge);
+    td.title = change.title + ' · ' + tr.dataset.comparisonLabel;
+  }
 
   function validate(payload, kind) {
     if (payload.schema_version !== 1 || payload.kind !== kind || !Array.isArray(payload.rows) || !payload.rows.length) throw Error('Formato de actualización inválido');
@@ -26,6 +39,9 @@
       if (typeof row.nsi !== 'number' || row.nsi < 1 || typeof row.nmv !== 'number') throw Error('Faltan métricas de ventas');
       for (const field of ['nsi','nmv','precio']) if (row[field] != null && (typeof row[field] !== 'number' || !Number.isFinite(row[field]) || row[field] < 0)) throw Error('Métrica inválida');
       if (row.stock != null && (!Number.isFinite(Number(row.stock)) || Number(row.stock) < 0)) throw Error('Stock inválido');
+      for (const field of ['previous_rank_nsi', 'previous_rank_nmv']) {
+        if (row[field] != null && (!Number.isInteger(row[field]) || row[field] < 1 || row[field] > 50)) throw Error('Ranking anterior inválido');
+      }
     }
     if (periods.some(period => !payload.rows.some(row => row.period === period && row.panel === 'grp-total'))) throw Error('Falta el ranking de Total MLA');
   }
@@ -48,11 +64,21 @@
         const table = document.getElementById('tbl-' + key + '-' + period);
         if (!table) return;
         const sort = panel.querySelector('.cat-sort-btn.active')?.dataset.sort === 'nmv' ? 'nmv' : 'nsi';
-        const rows = payload.rows.filter(row => row.panel === key && row.period === period).sort((a,b) => b[sort]-a[sort] || b.nsi-a.nsi || Number(a.item_id)-Number(b.item_id));
+        const rows = payload.rows.filter(row => row.panel === key && row.period === period).sort((a,b) => comparison.compare(a,b,sort));
+        const daily = payload.kind === 'hoy' ? loaded.daily : null;
+        const referenceAvailable = !!daily && daily.dates.hoy === payload.dates.hoy &&
+          comparison.previousDay(daily.dates.ayer, payload.dates.hoy);
+        const reference = referenceAvailable ? daily.rows.filter(row => row.panel === key && row.period === 'ayer') : [];
+        const previousRanks = { nsi: comparison.ranks(reference, 'nsi'), nmv: comparison.ranks(reference, 'nmv') };
         const body = document.createElement('tbody');
         rows.forEach((row,index) => {
           const tr = document.createElement('tr');
           tr.dataset.nsi = row.nsi; tr.dataset.nmv = row.nmv;
+          tr.dataset.itemId = row.item_id;
+          tr.dataset.comparisonAvailable = String(payload.kind === 'hoy' ? referenceAvailable : row.comparison_available === true);
+          tr.dataset.previousRankNsi = (payload.kind === 'hoy' ? previousRanks.nsi.get(String(row.item_id)) : row.previous_rank_nsi) ?? '';
+          tr.dataset.previousRankNmv = (payload.kind === 'hoy' ? previousRanks.nmv.get(String(row.item_id)) : row.previous_rank_nmv) ?? '';
+          tr.dataset.comparisonLabel = payload.kind === 'hoy' ? 'vs. ayer al cierre' : period === 'ayer' ? 'vs. anteayer' : 'vs. ventana de 7 días desplazada un día';
           table.querySelectorAll('thead th').forEach(th => {
             const td = document.createElement('td');
             td.className = th.className;
@@ -66,13 +92,14 @@
             else if (label === 'Subcombo') value = row.subcombo || '—';
             else if (label === 'Precio') value = row.precio == null ? '—' : '$ ' + number(row.precio);
             else if (label === 'Stock disp.') value = number(row.stock ?? stocks.get(String(row.item_id)));
-            else if (label.startsWith('vs ')) value = '—';
+            else if (label.startsWith('vs ')) { value = ''; td.classList.add('ranking-change'); }
             else if (th.classList.contains('hs-val')) value = (sort === 'nmv' ? '$ ' : '') + number(row[sort]);
             else if (/Categor[ií]a|Tipo/.test(label)) value = row.categoria || '—';
             else value = attribute(label, row);
             td.textContent = value;
             tr.appendChild(td);
           });
+          updateMovement(tr, index, sort);
           body.appendChild(tr);
         });
         if (!rows.length) {
@@ -91,8 +118,8 @@
     loaded[payload.kind] = payload;
     document.querySelector('.header > p').textContent = 'Top 50 ítems por NSI · MercadoLibre Argentina';
     const previewNote = document.querySelector('.cat-tabs + .preview-note');
-    if (previewNote) previewNote.textContent = loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Hot Sale: archivo histórico.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
-    status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hourCycle:'h23'}) : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
+    if (previewNote) previewNote.textContent = loaded.daily?.dates.hoy !== currentDay() ? 'Actualización diaria pendiente: Ayer y Últ. 7 días conservan las fechas indicadas en sus solapas.' : loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Hot Sale: archivo histórico.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
+    status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hourCycle:'h23'}) + (loaded[kind].dates.hoy !== currentDay() ? ' (atrasado)' : '') : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
   }
 
   async function load(kind) {
@@ -111,6 +138,20 @@
   // The original tab handler resets the active metric to NSI. Re-sort the
   // visible table too, so a previously selected NMV view cannot retain it.
   const originalSwitchDay = window.switchDay;
+  const originalSortCatPanel = window.sortCatPanel;
+  window.sortCatPanel = function (button, category) {
+    originalSortCatPanel(button, category);
+    const body = document.querySelector('#panel-' + category + ' .day-panel.active tbody');
+    if (!body) return;
+    const rows = Array.from(body.querySelectorAll('tr[data-comparison-available]'));
+    rows.sort((a,b) => comparison.compare(a.dataset, b.dataset, button.dataset.sort));
+    rows.forEach((tr,index) => {
+      tr.querySelector('.col-rank').textContent = index + 1;
+      tr.style.background = index % 2 ? '#fafafa' : '#fff';
+      updateMovement(tr, index, button.dataset.sort);
+      body.appendChild(tr);
+    });
+  };
   window.switchDay = function (button, category, day) {
     originalSwitchDay(button, category, day);
     const nsi = document.querySelector('#panel-' + category + ' .cat-sort-btn[data-sort="nsi"]');
