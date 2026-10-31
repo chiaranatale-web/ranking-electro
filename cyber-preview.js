@@ -16,6 +16,11 @@
   const template = panel.querySelector('#hsd-acum');
   // Remove every historical row before cloning the structure for the new event.
   template.querySelectorAll('tbody').forEach(body => body.replaceChildren());
+  template.querySelectorAll('.hs-cat-btn').forEach(button => {
+    button.classList.toggle('active', button.dataset.hscat === 'grp-total');
+    button.style.color = ''; button.style.borderBottomColor = 'transparent';
+  });
+  template.querySelectorAll('.hs-cat-panel').forEach(category => category.classList.toggle('active', category.id === 'hsd-acum-grp-total'));
   panel.querySelectorAll('.hs-day-panel:not(#hsd-acum)').forEach(node => node.remove());
   const bar = panel.querySelector('.hs-day-bar');
   bar.querySelectorAll('[data-hsday]:not([data-hsday="acum"])').forEach(node => node.remove());
@@ -33,6 +38,16 @@
     copy.querySelectorAll('[onclick]').forEach(node => { node.setAttribute('onclick', node.getAttribute('onclick').replaceAll('acum', key)); });
     panel.append(copy);
   }
+  panel.querySelectorAll('.hs-cat-tabs').forEach(tabs => {
+    const menu = document.createElement('details'); menu.className = 'category-more';
+    const summary = document.createElement('summary'); summary.textContent = 'Categorías ▾';
+    const list = document.createElement('div'); list.className = 'category-menu';
+    tabs.querySelectorAll('.hs-cat-btn').forEach(button => {
+      if (button.dataset.hscat.startsWith('grp-')) return;
+      list.append(button); button.addEventListener('click', () => { menu.open = false; summary.textContent = button.textContent + ' ▾'; });
+    });
+    menu.append(summary, list); tabs.querySelector('.tab-separator')?.remove(); tabs.append(menu);
+  });
   let latest;
   const emptyMessage = key => {
     if (today() < start) return 'Aún no comenzó. Cyber Monday: 2 al 11 de noviembre de 2026.';
@@ -75,7 +90,7 @@
         table.tBodies[0].replaceWith(body);
         const download = categoryPanel.querySelector('.dl-btn');
         if (download) { download.removeAttribute('onclick'); download.onclick = () => dlCSV(table.id, 'CyberMonday2026_' + key + '_' + category + '.csv'); download.disabled = !rows.length; }
-        const heading = table.querySelector('.hs-val'); if (heading) heading.textContent = metric === 'nmv' ? 'NSI (u.)' : 'NMV ($)';
+        const heading = table.querySelector('.hs-val'); if (heading) heading.textContent = metric === 'nsi' ? 'NSI (u.)' : 'NMV ($)';
       });
     });
     note.textContent = today() < start ? 'Aún no comenzó · 2 al 11 de noviembre de 2026, inclusive.' :
