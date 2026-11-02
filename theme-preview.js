@@ -2,6 +2,39 @@
   var tabs = document.querySelector('.cat-tabs');
   if (!tabs) return;
 
+  // Extend the preserved snapshot without copying historical TV sales.
+  if (!document.getElementById('panel-monitores')) {
+    var source = document.getElementById('panel-tv');
+    var sourceButton = tabs.querySelector('[data-cat="tv"]');
+    if (source && sourceButton) {
+      var panel = source.cloneNode(true);
+      panel.id = 'panel-monitores'; panel.classList.remove('active');
+      panel.querySelectorAll('[id]').forEach(function (node) { node.id = node.id.replaceAll('tv', 'monitores'); });
+      panel.querySelectorAll('[onclick]').forEach(function (node) { node.setAttribute('onclick', node.getAttribute('onclick').replaceAll("'tv'", "'monitores'").replaceAll('tbl-tv-', 'tbl-monitores-')); });
+      panel.querySelectorAll('tbody').forEach(function (body) {
+        var count = body.closest('table').querySelectorAll('th').length;
+        body.replaceChildren(); var cell = body.insertRow().insertCell();
+        cell.colSpan = count; cell.className = 'empty'; cell.textContent = 'Actualización de Monitores pendiente.';
+      });
+      source.after(panel);
+      var button = sourceButton.cloneNode(true);
+      button.dataset.cat = 'monitores'; button.textContent = 'Monitores'; button.classList.remove('active');
+      sourceButton.after(button);
+      var eventSource = document.getElementById('hsd-acum-tv');
+      var eventButton = document.querySelector('#hsd-acum [data-hscat="tv"]');
+      if (eventSource && eventButton) {
+        var eventPanel = eventSource.cloneNode(true);
+        eventPanel.id = 'hsd-acum-monitores'; eventPanel.classList.remove('active');
+        eventPanel.querySelectorAll('[id]').forEach(function (node) { node.id = node.id.replaceAll('tv', 'monitores'); });
+        eventPanel.querySelectorAll('tbody').forEach(function (body) { body.replaceChildren(); });
+        eventSource.after(eventPanel);
+        var eventTab = eventButton.cloneNode(true);
+        eventTab.dataset.hscat = 'monitores'; eventTab.textContent = 'Monitores'; eventTab.classList.remove('active');
+        eventButton.after(eventTab);
+      }
+    }
+  }
+
   var categoryButtons = Array.from(tabs.querySelectorAll('.tab-btn:not(.grp-btn):not(.hs-main-btn)'));
   if (!categoryButtons.length) return;
 

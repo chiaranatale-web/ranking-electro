@@ -81,6 +81,10 @@
             else if (/Categor[ií]a|Tipo/.test(heading)) value = row.categoria;
             else if (heading.startsWith('Precio')) value = '$ ' + number(row.precio);
             else if (heading === 'Stock disp.') value = number(row.stock);
+            else if (heading === 'Pulgadas') {
+              const size = /(\d{2,3})\s*(?:pulgadas?|["”])/.exec((row.title || '').toLowerCase());
+              value = size ? size[1] + '″' : '—';
+            }
             else if (th.classList.contains('hs-val')) value = (metric === 'nmv' ? '$ ' : '') + number(row[metric]);
             td.textContent = value || '—';
           });
