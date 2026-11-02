@@ -64,8 +64,7 @@
       dayPanel.querySelectorAll('.hs-cat-panel').forEach(categoryPanel => {
         const category = categoryPanel.id.replace('hsd-' + key + '-', '');
         const table = categoryPanel.querySelector('table');
-        const rows = (latest?.rows || []).filter(row => row.period === period && row.panel === category)
-          .sort((a,b) => window.RankingComparison.compare(a,b,metric));
+        const rows = window.RankingComparison.topRows((latest?.rows || []).filter(row => row.period === period && row.panel === category), metric);
         const body = document.createElement('tbody');
         rows.forEach((row,index) => {
           const tr = body.insertRow(); tr.dataset.nsi = row.nsi; tr.dataset.nmv = row.nmv;

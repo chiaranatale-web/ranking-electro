@@ -1,9 +1,9 @@
 (function initializeRanking() {
   'use strict';
   // Older cached loaders may not include the comparison helper yet.
-  if (!window.RankingComparison) {
+  if (!window.RankingComparison?.topRows) {
     const helper = document.createElement('script');
-    helper.src = 'ranking-comparison.js?v=20261030-1';
+    helper.src = 'ranking-comparison.js?v=20261102-1';
     helper.onload = initializeRanking;
     helper.onerror = () => console.info('No se pudo cargar la comparación de rankings');
     document.head.appendChild(helper);
@@ -36,7 +36,7 @@
   }
 
   function validate(payload, kind) {
-    if (payload.schema_version !== 1 || payload.kind !== kind || !Array.isArray(payload.rows) || !payload.rows.length) throw Error('Formato de actualización inválido');
+    if (![1,2].includes(payload.schema_version) || payload.kind !== kind || !Array.isArray(payload.rows) || !payload.rows.length) throw Error('Formato de actualización inválido');
     if (!Number.isFinite(Date.parse(payload.generated_at))) throw Error('Fecha de actualización inválida');
     for (const date of Object.values(payload.dates || {})) if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw Error('Período inválido');
     if (!payload.dates?.hoy || !payload.dates?.ayer || !payload.dates?.week_start) throw Error('Faltan fechas');
@@ -48,8 +48,9 @@
       const key = [row.period, row.panel, row.item_id].join('/');
       if (!periods.includes(row.period) || seen.has(key) || !/^\d+$/.test(String(row.item_id)) || !document.getElementById('panel-' + row.panel)) throw Error('Ranking inválido');
       seen.add(key);
+      if (payload.schema_version === 2 && (!Number.isInteger(row.rank) || row.rank < 1 || !Number.isInteger(row.rank_nmv) || row.rank_nmv < 1 || Math.min(row.rank,row.rank_nmv) > 50)) throw Error('Faltan rankings independientes por métrica');
       if (row.period.startsWith('cyber_') && (!payload.event?.through_date || (row.period !== 'cyber_acum' && '2026-11-' + String(Number(row.period.slice(7)) + 1).padStart(2, '0') > payload.event.through_date))) throw Error('Día de Cyber Monday no cerrado');
-      if (typeof row.nsi !== 'number' || row.nsi < 1 || typeof row.nmv !== 'number') throw Error('Faltan métricas de ventas');
+      if (typeof row.nsi !== 'number' || row.nsi <= 0 || typeof row.nmv !== 'number') throw Error('Faltan métricas de ventas');
       for (const field of ['nsi','nmv','precio']) if (row[field] != null && (typeof row[field] !== 'number' || !Number.isFinite(row[field]) || row[field] < 0)) throw Error('Métrica inválida');
       if (row.stock != null && (!Number.isFinite(Number(row.stock)) || Number(row.stock) < 0)) throw Error('Stock inválido');
       for (const field of ['previous_rank_nsi', 'previous_rank_nmv']) {
@@ -77,7 +78,7 @@
         const table = document.getElementById('tbl-' + key + '-' + period);
         if (!table) return;
         const sort = panel.querySelector('.cat-sort-btn.active')?.dataset.sort === 'nmv' ? 'nmv' : 'nsi';
-        const rows = payload.rows.filter(row => row.panel === key && row.period === period).sort((a,b) => comparison.compare(a,b,sort));
+        const rows = comparison.topRows(payload.rows.filter(row => row.panel === key && row.period === period), sort);
         const daily = payload.kind === 'hoy' ? loaded.daily : null;
         const referenceAvailable = !!daily && daily.dates.hoy === payload.dates.hoy &&
           comparison.previousDay(daily.dates.ayer, payload.dates.hoy);
@@ -130,7 +131,7 @@
     });
     loaded[payload.kind] = payload;
     if (payload.kind === 'daily') window.CyberMonday?.render(payload);
-    document.querySelector('.header > p').textContent = 'Top 50 ítems por NSI · MercadoLibre Argentina';
+    document.querySelector('.header > p').textContent = 'Top 50 ítems según la métrica seleccionada · MercadoLibre Argentina';
     const previewNote = document.querySelector('.cat-tabs + .preview-note');
     if (previewNote) previewNote.textContent = loaded.daily?.dates.hoy !== currentDay() ? 'Actualización diaria pendiente: Ayer y Últ. 7 días conservan las fechas indicadas en sus solapas.' : loaded.hoy && stale('hoy', loaded.hoy) ? 'Actualización de Hoy demorada: se conservan los últimos datos válidos y su hora real.' : loaded.daily && loaded.hoy ? 'Datos actualizados según los horarios indicados. Cyber Monday: 02/11–11/11/2026.' : 'Actualización parcial. Los períodos sin actualización conservan el snapshot ' + snapshot + '.';
     status.textContent = ['daily', 'hoy'].map(kind => loaded[kind] ? (kind === 'daily' ? 'Diario: ' : 'Hoy: ') + new Date(loaded[kind].generated_at).toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires',hourCycle:'h23'}) + (stale(kind, loaded[kind]) ? ' (atrasado)' : '') : (kind === 'daily' ? 'Diario' : 'Hoy') + ': sin actualización conectada').join(' · ');
@@ -155,16 +156,8 @@
   const originalSortCatPanel = window.sortCatPanel;
   window.sortCatPanel = function (button, category) {
     originalSortCatPanel(button, category);
-    const body = document.querySelector('#panel-' + category + ' .day-panel.active tbody');
-    if (!body) return;
-    const rows = Array.from(body.querySelectorAll('tr[data-comparison-available]'));
-    rows.sort((a,b) => comparison.compare(a.dataset, b.dataset, button.dataset.sort));
-    rows.forEach((tr,index) => {
-      tr.querySelector('.col-rank').textContent = index + 1;
-      tr.style.background = index % 2 ? '#fafafa' : '#fff';
-      updateMovement(tr, index, button.dataset.sort);
-      body.appendChild(tr);
-    });
+    if (loaded.daily) render(loaded.daily);
+    if (loaded.hoy) render(loaded.hoy);
   };
   window.switchDay = function (button, category, day) {
     originalSwitchDay(button, category, day);

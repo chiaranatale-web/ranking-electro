@@ -9,8 +9,13 @@
     return Number(b[metric]) - Number(a[metric]) || Number(b[other]) - Number(a[other]) ||
       Number(a.item_id ?? a.itemId) - Number(b.item_id ?? b.itemId);
   }
+  function topRows(rows, metric) {
+    const field = metric === 'nmv' ? 'rank_nmv' : 'rank';
+    return rows.filter(row => row[field] == null || Number(row[field]) <= 50)
+      .sort((a,b) => compare(a,b,metric)).slice(0,50);
+  }
   function ranks(rows, metric) {
-    return new Map(rows.slice().sort((a, b) => compare(a, b, metric))
+    return new Map(topRows(rows, metric)
       .map((row, index) => [String(row.item_id), index + 1]));
   }
   function previousDay(reference, day) {
@@ -27,5 +32,5 @@
     return { text: (delta > 0 ? '▲ ' : '▼ ') + Math.abs(delta), className: delta > 0 ? 'up' : 'dn',
       title: (delta > 0 ? 'Subió ' : 'Bajó ') + Math.abs(delta) + ' posiciones' };
   }
-  return { compare, ranks, previousDay, movement };
+  return { compare, topRows, ranks, previousDay, movement };
 });
